@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RippleWaveToy</string>
+    <string name="toy_name_ripple">Ripple Wave</string>
+    <string name="toy_summary_ripple">中心から同心円の波紋。長押しで新しい水滴＆パラメータ切替。</string>
+</resources>

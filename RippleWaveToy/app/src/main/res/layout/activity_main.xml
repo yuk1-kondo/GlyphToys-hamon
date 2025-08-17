@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#000000"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="RippleWaveToy"
+        android:textSize="32sp"
+        android:textColor="#FFFFFF"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="波紋トイ シミュレーター"
+        android:textSize="18sp"
+        android:textColor="#CCCCCC"
+        android:gravity="center"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/simulator_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="シミュレーター起動"
+        android:textSize="18sp"
+        android:padding="16dp"
+        android:background="#4CAF50"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/toy_info_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="トイの情報"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="#2196F3"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="24dp"/>
+
+    <TextView
+        android:id="@+id/info_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="14sp"
+        android:textColor="#CCCCCC"
+        android:gravity="center"
+        android:visibility="gone"
+        android:lineSpacingExtra="4dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="※ エミュレーター用のシミュレーターです\n実機ではGlyph Matrixに表示されます"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:gravity="center"
+        android:layout_marginTop="32dp"/>
+
+</LinearLayout>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    
+    <!-- Background -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M0,0h512v512h-512z"/>
+    
+    <!-- Glyph Matrix area (440x440 with 36px margin) -->
+    <path
+        android:fillColor="#1C1C1C"
+        android:pathData="M36,36 A220,220 0 1,1 476,36 A220,220 0 1,1 36,36"/>
+    
+    <!-- Center dot (water drop) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M256,248 A8,8 0 1,1 256,264 A8,8 0 1,1 256,248"/>
+    
+    <!-- Ripple waves (concentric circles) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeAlpha="0.8"
+        android:pathData="M256,216 A40,40 0 1,1 256,296 A40,40 0 1,1 256,216"/>
+    
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeAlpha="0.6"
+        android:pathData="M256,176 A80,80 0 1,1 256,336 A80,80 0 1,1 256,176"/>
+    
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeAlpha="0.4"
+        android:pathData="M256,136 A120,120 0 1,1 256,376 A120,120 0 1,1 256,136"/>
+    
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeAlpha="0.2"
+        android:pathData="M256,96 A160,160 0 1,1 256,416 A160,160 0 1,1 256,96"/>
+    
+    <!-- Additional ripple details -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:strokeAlpha="0.7"
+        android:pathData="M256,196 A60,60 0 1,1 256,316 A60,60 0 1,1 256,196"/>
+    
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:strokeAlpha="0.5"
+        android:pathData="M256,156 A100,100 0 1,1 256,356 A100,100 0 1,1 256,156"/>
+    
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:strokeAlpha="0.3"
+        android:pathData="M256,116 A140,140 0 1,1 256,396 A140,140 0 1,1 256,116"/>
+        
+</vector>
