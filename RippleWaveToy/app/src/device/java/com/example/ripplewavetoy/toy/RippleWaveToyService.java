@@ -3,50 +3,30 @@ package com.example.ripplewavetoy.toy;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Intent;
-import android.os.*;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
+import android.os.Messenger;
+
 import androidx.annotation.Nullable;
 
-// エミュレーター用ビルドではGlyph Matrix SDKを使わない
-// import com.nothing.gdk.glyph.Glyph;
-// import com.nothing.gdk.glyph.GlyphMatrixFrame;
-// import com.nothing.gdk.glyph.GlyphMatrixManager;
-// import com.nothing.gdk.glyph.GlyphToy;
+import com.nothing.ketchum.Glyph;
+import com.nothing.ketchum.GlyphMatrixManager;
+import com.nothing.ketchum.GlyphToy;
+import com.nothing.ketchum.GlyphException;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * RippleWaveToy
- * - 中心(または任意点)から同心円の波紋が伝播
- * - 長押し: 新しい水滴を落とす & プロファイル切替 (速度/波長/減衰)
- * - AOD: 毎分イベントで1ステップだけ進める省電力描画
- * - 25×25の円形実表示を意識して円マスクを適用
- * 
- * 注意: このサービスは実機でのみ動作します
+ * RippleWaveToy (device flavor)
+ * 実機のGlyph Matrixに波紋を描画するToyサービス実装。
  */
 public class RippleWaveToyService extends Service {
+    private static final String TAG = "RippleWaveToy";
 
-    // エミュレーター用ビルドでは動作しない
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        // エミュレーターでは何もしない
-    }
-
-    @Nullable @Override
-    public IBinder onBind(Intent intent) {
-        // エミュレーターでは何もしない
-        return null;
-    }
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        // エミュレーターでは何もしない
-        return false;
-    }
-
-    // 以下のコードは実機用ビルドでのみ有効
-    /*
     private GlyphMatrixManager mGM;
     private GlyphMatrixManager.Callback mCallback;
 
@@ -60,9 +40,9 @@ public class RippleWaveToyService extends Service {
 
     // ===== Simulation params (プロファイル切替) =====
     private static class Profile {
-        final float wavelength;   // λ [pixels]：波の間隔
-        final float speed;        // v [pixels/frame]：外向きの伝播速度
-        final float damping;      // α：距離による減衰（大きいほど減衰強）
+        final float wavelength;   // λ [pixels]
+        final float speed;        // v [pixels/frame]
+        final float damping;      // α：距離による減衰
         Profile(float wl, float v, float a){ wavelength=wl; speed=v; damping=a; }
     }
     private final Profile[] profiles = new Profile[] {
@@ -73,10 +53,10 @@ public class RippleWaveToyService extends Service {
     private int profileIdx = 0;
 
     // 時間管理
-    private float t = 0.0f;       // 経過フレーム（連続値）
-    private float dt = 1.0f;      // 1ステップ分の時間（速度と合わせて実効速度を調整）
+    private float t = 0.0f;       // 経過フレーム
+    private float dt = 1.0f;      // ステップ幅
 
-    // 水滴（イベント）管理：複数の波源を重ねられるようにしておく（最大3）
+    // 水滴（イベント）管理：複数の波源（最大3）
     private static class Drop {
         final float x, y;     // 発生位置
         float age;            // 発生からの経過時間（frame）
@@ -97,7 +77,8 @@ public class RippleWaveToyService extends Service {
     private final Handler serviceHandler = new Handler(Looper.getMainLooper()) {
         @Override public void handleMessage(Message msg) {
             if (msg.what == GlyphToy.MSG_GLYPH_TOY) {
-                String event = msg.getData().getString(GlyphToy.MSG_GLYPH_TOY_DATA);
+                Bundle bundle = msg.getData();
+                String event = bundle != null ? bundle.getString(GlyphToy.MSG_GLYPH_TOY_DATA) : null;
                 if (GlyphToy.EVENT_CHANGE.equals(event)) {
                     onLongPress();
                 } else if (GlyphToy.EVENT_AOD.equals(event)) {
@@ -111,6 +92,11 @@ public class RippleWaveToyService extends Service {
     };
     private final Messenger serviceMessenger = new Messenger(serviceHandler);
 
+    @Override
+    public void onCreate() {
+        super.onCreate();
+    }
+
     @Nullable @Override
     public IBinder onBind(Intent intent) {
         init();
@@ -120,10 +106,7 @@ public class RippleWaveToyService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         stopTimer();
-        if (mGM != null) {
-            try { mGM.closeAppMatrix(); } catch (Throwable ignored) {}
-            mGM.unInit();
-        }
+        if (mGM != null) { mGM.unInit(); }
         mGM = null;
         mCallback = null;
         return false;
@@ -133,19 +116,49 @@ public class RippleWaveToyService extends Service {
         mGM = GlyphMatrixManager.getInstance(getApplicationContext());
         mCallback = new GlyphMatrixManager.Callback() {
             @Override public void onServiceConnected(ComponentName name) {
-                mGM.register(Glyph.DEVICE_23112);
+                boolean registered = tryRegisterWithFallback();
+                android.util.Log.d(TAG, "onServiceConnected, registered=" + registered);
+                if (!registered) return;
                 // 初期状態：中心に水滴1つ
                 resetScene();
                 renderAndPresent();
                 startTimer(40); // 25fps相当（=40ms）
             }
-            @Override public void onServiceDisconnected(ComponentName name) {}
+            @Override public void onServiceDisconnected(ComponentName name) { }
         };
         mGM.init(mCallback);
     }
 
+    private boolean tryRegisterWithFallback() {
+        String[] candidates = new String[] {
+                Glyph.DEVICE_23112,
+                Glyph.DEVICE_23113,
+                Glyph.DEVICE_24111,
+                Glyph.DEVICE_23111,
+                Glyph.DEVICE_22111,
+                Glyph.DEVICE_20111,
+        };
+        for (String code : candidates) {
+            try {
+                boolean ok = mGM.register(code);
+                if (ok) {
+                    android.util.Log.i(TAG, "Registered target=" + code);
+                    try {
+                        mGM.setGlyphMatrixTimeout(false);
+                    } catch (GlyphException ignore) {}
+                    return true;
+                }
+            } catch (Throwable t) {
+                android.util.Log.w(TAG, "register failed for code=" + code + ", " + t);
+            }
+        }
+        android.util.Log.e(TAG, "All register candidates failed.");
+        return false;
+    }
+
     // ===== 長押しアクション =====
     private void onLongPress() {
+        android.util.Log.d(TAG, "EVENT_CHANGE long-press");
         // 1) プロファイル切替
         profileIdx = (profileIdx + 1) % profiles.length;
         // 2) 新しい水滴を中心に追加（空きスロットがあれば）
@@ -197,13 +210,11 @@ public class RippleWaveToyService extends Service {
     }
 
     private void removeFadedDrops() {
-        // ageや距離減衰でほぼ無影響なら解放
         for (int i = 0; i < drops.length; i++) {
             Drop d = drops[i];
             if (d == null) continue;
             if (d.age > 400f) { drops[i] = null; }
         }
-        // すべて消えたら1つ追加して静的になり過ぎないように
         boolean any = false;
         for (Drop d : drops) if (d != null) { any = true; break; }
         if (!any) drops[0] = new Drop(CX, CY);
@@ -218,7 +229,6 @@ public class RippleWaveToyService extends Service {
         final float v  = pf.speed;                // 伝播速度
         final float a  = pf.damping;              // 減衰
 
-        // 画素ループ（左上→右下）
         int idx = 0;
         for (int j = 0; j < H; j++) {
             for (int i = 0; i < W; i++, idx++) {
@@ -228,7 +238,7 @@ public class RippleWaveToyService extends Service {
                 float rFromCenter = (float)Math.sqrt(dx*dx + dy*dy);
                 if (rFromCenter > RADIUS + 0.5f) { frameBuf[idx] = 0xFF000000; continue; }
 
-                // （オプション）外周なだらかマスク：円の縁をソフトに
+                // 外周なだらかマスク：円の縁をソフトに
                 float mask = smoothstep(RADIUS + 0.5f, RADIUS - 1.0f, rFromCenter);
 
                 // 各Dropの波を合成
@@ -248,10 +258,9 @@ public class RippleWaveToyService extends Service {
                     sum += amp * (float)Math.cos(phase);
                 }
 
-                // sum ∈ [-? , +?] を 0..255 へマッピング
-                // ベース輝度をやや下げ、波が"白く浮かぶ"感じに（お好みで）
-                float base = 12f;
-                float scale = 115f; // コントラスト
+                // sum を 0..255 へマッピング
+                float base = 40f;
+                float scale = 200f; // コントラストを強めに
                 float val = base + scale * sum;
                 // マスク適用
                 val *= mask;
@@ -259,19 +268,27 @@ public class RippleWaveToyService extends Service {
                 // クリップ
                 if (val < 0f)   val = 0f;
                 if (val > 255f) val = 255f;
-                int iv = (int)(val + 0.5f);
-
-                // ARGB：白の明度のみ変える
-                int argb = 0xFF000000 | (iv << 16) | (iv << 8) | iv;
-                frameBuf[idx] = argb;
+                // SDK想定の明度スロット（0..2040）へスケール
+                int brightness = (int)((val / 255f) * 2040f + 0.5f);
+                if (brightness < 0) brightness = 0;
+                if (brightness > 2040) brightness = 2040;
+                frameBuf[idx] = brightness;
             }
         }
 
-        // 生配列でフレーム更新（Toyサービスなので setMatrixFrame を使用）
-        mGM.setMatrixFrame(frameBuf);
+        // Toyサービスでは setMatrixFrame を使用
+        try {
+            mGM.setMatrixFrame(frameBuf);
+        } catch (GlyphException e) {
+            android.util.Log.w(TAG, "setMatrixFrame failed, trying setAppMatrixFrame: " + e);
+            try {
+                mGM.setAppMatrixFrame(frameBuf);
+            } catch (GlyphException e2) {
+                android.util.Log.e(TAG, "setAppMatrixFrame also failed: " + e2);
+            }
+        }
     }
 
-    // 円縁を柔らかくするスムーズステップ
     private static float smoothstep(float edge0, float edge1, float x) {
         float t = clamp01((x - edge0) / (edge1 - edge0));
         return t * t * (3f - 2f * t);
@@ -280,9 +297,8 @@ public class RippleWaveToyService extends Service {
         return v < 0f ? 0f : (v > 1f ? 1f : v);
     }
 
-    // 水滴の"鳴き"を時間で包絡（0→最大→減衰）
+    // 水滴の包絡（0→最大→減衰）
     private static float envelope(float age) {
-        // 立ち上がり素早く→ゆっくり減衰（お好みで調整）
         float a = age;
         float attack = 6f;
         float fade   = 0.004f; // 小さいほどゆっくり消える
@@ -290,5 +306,6 @@ public class RippleWaveToyService extends Service {
         float rel = (float)Math.exp(-fade * a);
         return att * rel;
     }
-    */
 }
+
+

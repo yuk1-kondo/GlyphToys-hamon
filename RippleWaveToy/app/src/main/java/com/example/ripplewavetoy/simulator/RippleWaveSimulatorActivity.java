@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.widget.ImageView;
 import android.os.Handler;
 import android.os.Looper;
+import com.example.ripplewavetoy.R;
 
 import java.util.Timer;
 import java.util.TimerTask;
