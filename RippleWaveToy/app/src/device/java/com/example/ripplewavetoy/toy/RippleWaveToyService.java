@@ -9,6 +9,10 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 
 import androidx.annotation.Nullable;
 
@@ -19,6 +23,7 @@ import com.nothing.ketchum.GlyphException;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Random;
 
 /**
  * RippleWaveToy (device flavor)
@@ -29,6 +34,8 @@ public class RippleWaveToyService extends Service {
 
     private GlyphMatrixManager mGM;
     private GlyphMatrixManager.Callback mCallback;
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
 
     // ===== Matrix geometry =====
     private static final int W = 25;
@@ -38,17 +45,17 @@ public class RippleWaveToyService extends Service {
     // 実表示は円。半径は外周LEDの中心あたりまで（調整可）
     private static final float RADIUS = 12.4f;
 
-    // ===== Simulation params (プロファイル切替) =====
+    // ===== Simulation params (禅スタイルの単発リング) =====
     private static class Profile {
-        final float wavelength;   // λ [pixels]
-        final float speed;        // v [pixels/frame]
-        final float damping;      // α：距離による減衰
-        Profile(float wl, float v, float a){ wavelength=wl; speed=v; damping=a; }
+        final float speed;   // v [pixels/frame]
+        final float sigma;   // ガウシアンリングの太さ（標準偏差, px）
+        final float damping; // α：距離による減衰
+        Profile(float v, float s, float a){ speed=v; sigma=s; damping=a; }
     }
     private final Profile[] profiles = new Profile[] {
-            new Profile(4.0f,  0.22f, 0.06f), // 柔らかめ
-            new Profile(3.0f,  0.35f, 0.05f), // くっきり・速い
-            new Profile(5.5f,  0.16f, 0.08f), // ゆったり・減衰強
+            new Profile(0.22f, 1.8f, 0.07f), // 柔らかめ（禅）
+            new Profile(0.35f, 1.2f, 0.06f), // くっきり・速い
+            new Profile(0.16f, 2.3f, 0.08f), // ゆったり・減衰強
     };
     private int profileIdx = 0;
 
@@ -70,6 +77,11 @@ public class RippleWaveToyService extends Service {
 
     // タイマー
     private Timer timer;
+    private Timer autoDropTimer;
+    private boolean isAodMode = false;
+    private boolean isRainMode = false;
+    private final Random random = new Random();
+    private long lastShakeMs = 0L;
     // フレームバッファ（ARGB）
     private final int[] frameBuf = new int[W * H];
 
@@ -82,8 +94,11 @@ public class RippleWaveToyService extends Service {
                 if (GlyphToy.EVENT_CHANGE.equals(event)) {
                     onLongPress();
                 } else if (GlyphToy.EVENT_AOD.equals(event)) {
+                    isAodMode = true;
                     step();        // 低頻度で1ステップ
                     renderAndPresent();
+                } else {
+                    isAodMode = false;
                 }
             } else {
                 super.handleMessage(msg);
@@ -106,6 +121,8 @@ public class RippleWaveToyService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         stopTimer();
+        stopAutoDropTimer();
+        teardownSensors();
         if (mGM != null) { mGM.unInit(); }
         mGM = null;
         mCallback = null;
@@ -120,9 +137,12 @@ public class RippleWaveToyService extends Service {
                 android.util.Log.d(TAG, "onServiceConnected, registered=" + registered);
                 if (!registered) return;
                 // 初期状態：中心に水滴1つ
+                isAodMode = false;
                 resetScene();
                 renderAndPresent();
                 startTimer(40); // 25fps相当（=40ms）
+                startAutoDropTimer(10_000L, 10_000L);
+                setupSensors();
             }
             @Override public void onServiceDisconnected(ComponentName name) { }
         };
@@ -159,10 +179,16 @@ public class RippleWaveToyService extends Service {
     // ===== 長押しアクション =====
     private void onLongPress() {
         android.util.Log.d(TAG, "EVENT_CHANGE long-press");
-        // 1) プロファイル切替
-        profileIdx = (profileIdx + 1) % profiles.length;
-        // 2) 新しい水滴を中心に追加（空きスロットがあれば）
-        addDrop(CX, CY);
+        // モード切替: 禅(10s/滴) <-> 雨(ランダム多点)
+        isRainMode = !isRainMode;
+        if (isRainMode) {
+            android.util.Log.i(TAG, "Switch to RAIN mode");
+            startAutoDropTimer(0L, 800L); // 小雨のように0.8秒毎
+            spawnRainBurst(5); // 切替時に軽く降らせる
+        } else {
+            android.util.Log.i(TAG, "Switch to ZEN mode");
+            startAutoDropTimer(10_000L, 10_000L);
+        }
     }
 
     // ===== タイマー =====
@@ -180,6 +206,20 @@ public class RippleWaveToyService extends Service {
         if (timer != null) { try { timer.cancel(); } catch (Throwable ignored) {} timer = null; }
     }
 
+    // ===== 自動ドロップ（10秒おき、AOD中は停止） =====
+    private void startAutoDropTimer(long initialDelayMs, long periodMs) {
+        stopAutoDropTimer();
+        autoDropTimer = new Timer("RippleAutoDrop");
+        autoDropTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override public void run() {
+                if (!isAodMode) { serviceHandler.post(() -> spawnTick()); }
+            }
+        }, initialDelayMs, periodMs);
+    }
+    private void stopAutoDropTimer() {
+        if (autoDropTimer != null) { try { autoDropTimer.cancel(); } catch (Throwable ignored) {} autoDropTimer = null; }
+    }
+
     // ===== シミュレーション1ステップ =====
     private void step() {
         t += dt;
@@ -193,7 +233,7 @@ public class RippleWaveToyService extends Service {
     private void resetScene() {
         t = 0f;
         for (int i = 0; i < drops.length; i++) drops[i] = null;
-        drops[0] = new Drop(CX, CY);
+        // 禅: 初期は静寂（ドロップ無し）
     }
 
     private void addDrop(float x, float y) {
@@ -215,19 +255,67 @@ public class RippleWaveToyService extends Service {
             if (d == null) continue;
             if (d.age > 400f) { drops[i] = null; }
         }
-        boolean any = false;
-        for (Drop d : drops) if (d != null) { any = true; break; }
-        if (!any) drops[0] = new Drop(CX, CY);
+        // 禅: 全て消えたら静寂のまま
     }
+
+    // ===== 雨/シェイク補助 =====
+    private void spawnTick() {
+        if (isRainMode) {
+            // ランダム位置に弱い雨滴を1つ
+            addDrop(clamp(gaussX(), 0f, W - 1), clamp(gaussY(), 0f, H - 1));
+        } else {
+            addDrop(CX, CY);
+        }
+    }
+
+    private void spawnRainBurst(int count) {
+        for (int k = 0; k < count; k++) {
+            addDrop(clamp(gaussX(), 0f, W - 1), clamp(gaussY(), 0f, H - 1));
+        }
+    }
+
+    private float gaussX() { return (float)(CX + random.nextGaussian() * (W * 0.18f)); }
+    private float gaussY() { return (float)(CY + random.nextGaussian() * (H * 0.18f)); }
+    private static float clamp(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+    private void setupSensors() {
+        try {
+            sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+            if (sensorManager != null) {
+                accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                if (accelerometer != null) {
+                    sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+    private void teardownSensors() {
+        try { if (sensorManager != null) sensorManager.unregisterListener(shakeListener); } catch (Throwable ignored) {}
+        accelerometer = null;
+        sensorManager = null;
+    }
+
+    private final SensorEventListener shakeListener = new SensorEventListener() {
+        @Override public void onSensorChanged(SensorEvent event) {
+            float ax = event.values[0], ay = event.values[1], az = event.values[2];
+            float g = (float)Math.sqrt(ax*ax + ay*ay + az*az);
+            long now = System.currentTimeMillis();
+            if (g > 15.0f && now - lastShakeMs > 800) { // しっかり振ったら
+                lastShakeMs = now;
+                if (!isAodMode) spawnRainBurst(8);
+            }
+        }
+        @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    };
 
     // ===== 描画 =====
     private void renderAndPresent() {
         if (mGM == null) return;
 
         final Profile pf = profiles[profileIdx];
-        final float wl = pf.wavelength;           // λ
         final float v  = pf.speed;                // 伝播速度
         final float a  = pf.damping;              // 減衰
+        final float sigma = pf.sigma;             // リング太さ
 
         int idx = 0;
         for (int j = 0; j < H; j++) {
@@ -236,12 +324,12 @@ public class RippleWaveToyService extends Service {
                 float dx = i - CX;
                 float dy = j - CY;
                 float rFromCenter = (float)Math.sqrt(dx*dx + dy*dy);
-                if (rFromCenter > RADIUS + 0.5f) { frameBuf[idx] = 0xFF000000; continue; }
+                if (rFromCenter > RADIUS + 0.5f) { frameBuf[idx] = 0; continue; }
 
                 // 外周なだらかマスク：円の縁をソフトに
                 float mask = smoothstep(RADIUS + 0.5f, RADIUS - 1.0f, rFromCenter);
 
-                // 各Dropの波を合成
+                // 各Dropの単発リングを合成
                 float sum = 0f;
                 for (Drop d : drops) {
                     if (d == null) continue;
@@ -249,27 +337,27 @@ public class RippleWaveToyService extends Service {
                     float ry = j - d.y;
                     float r  = (float)Math.sqrt(rx*rx + ry*ry);
 
-                    // フェーズ： 2π * ( (r - v*t_drop) / λ )
-                    float phase = (float)(2.0 * Math.PI * ((r - v * d.age) / wl));
+                    // 単発リング: r0 = v * age のガウシアンシェル
+                    float r0 = v * d.age;
+                    float dr = r - r0;
+                    float shell = (float)Math.exp(-0.5f * (dr * dr) / (sigma * sigma));
 
-                    // 距離減衰（e^{-a r}）と年齢による立ち上がり/減衰
+                    // 距離減衰と年齢包絡
                     float amp = (float)Math.exp(-a * r) * envelope(d.age);
 
-                    sum += amp * (float)Math.cos(phase);
+                    sum += amp * shell;
                 }
 
-                // sum を 0..255 へマッピング
-                float base = 40f;
-                float scale = 200f; // コントラストを強めに
-                float val = base + scale * sum;
-                // マスク適用
-                val *= mask;
+                // 0..1 正規化し、マスク適用
+                float baseN = 0.00f;  // 静寂
+                float gain  = 1.10f;  // コントラスト
+                float valN  = baseN + gain * sum;
+                valN *= mask;
+                if (valN < 0f) valN = 0f;
+                if (valN > 1f) valN = 1f;
 
-                // クリップ
-                if (val < 0f)   val = 0f;
-                if (val > 255f) val = 255f;
                 // SDK想定の明度スロット（0..2040）へスケール
-                int brightness = (int)((val / 255f) * 2040f + 0.5f);
+                int brightness = (int)(valN * 2040f + 0.5f);
                 if (brightness < 0) brightness = 0;
                 if (brightness > 2040) brightness = 2040;
                 frameBuf[idx] = brightness;
