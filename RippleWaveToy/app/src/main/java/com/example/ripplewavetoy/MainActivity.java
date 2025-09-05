@@ -35,11 +35,13 @@ public class MainActivity extends Activity {
     
     private void showToyInfo() {
         TextView infoText = findViewById(R.id.info_text);
-        String info = "RippleWaveToy について\n\n" +
-                     "• 中心から同心円の波紋が外へ伝播\n" +
-                     "• 3つのプロファイルで波の特性を変更\n" +
-                     "• 長押しで新しい水滴追加 + プロファイル切替\n" +
-                     "• AOD対応で省電力モード\n" +
+        String info = "Hamon について\n\n" +
+                     "• 静寂の水面に広がる波紋を表現\n" +
+                     "• モード: 禅 / 波紋 / 雨\n" +
+                     "  - 禅: 一滴が静かに広がる\n" +
+                     "  - 波紋: 先頭リングに後続リングが追従\n" +
+                     "  - 雨: ランダムな多点の雨粒、シェイクでバースト\n" +
+                     "• AOD対応で省電力の演出\n" +
                      "• 実機ではGlyph Matrixに表示\n\n" +
                      "※ このシミュレーターは25x25グリッドを画面に表示します";
         infoText.setText(info);

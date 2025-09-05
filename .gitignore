@@ -16,4 +16,29 @@ Thumbs.db
 *.class
 *.log
 build/
-out/ 
+out/
+
+# Android/Gradle
+**/build/
+**/.gradle/
+.gradle/
+local.properties
+
+# Keystores & signing
+*.keystore
+*.jks
+*.pem
+*.p12
+*.pfx
+**/keystore.properties
+**/signing.properties
+
+# APK/AAB outputs
+*.apk
+*.aab
+
+# Misc
+captures/
+.externalNativeBuild/
+.cxx/
+*.hprof

@@ -2,6 +2,15 @@ plugins {
     id 'com.android.application'
 }
 
+// Load signing credentials from an untracked keystore.properties (if present)
+import java.util.Properties
+def keystoreProperties = new Properties()
+def keystorePropsFile = file('../keystore.properties')
+def hasKeystore = keystorePropsFile.exists()
+if (hasKeystore) {
+    keystorePropsFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace 'com.example.ripplewavetoy'
     compileSdk 34
@@ -16,10 +25,24 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasKeystore) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     

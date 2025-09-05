@@ -29,7 +29,7 @@
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
 
-        <!-- RippleWaveToy Service Registration -->
+        <!-- Hamon Toy Service Registration -->
         <service
             android:name=".toy.RippleWaveToyService"
             android:exported="true">
@@ -39,15 +39,15 @@
 
             <meta-data
                 android:name="com.nothing.glyph.toy.name"
-                android:resource="@string/toy_name_ripple"/>
+                android:resource="@string/toy_name_hamon"/>
 
             <meta-data
                 android:name="com.nothing.glyph.toy.image"
-                android:resource="@drawable/img_toy_preview_ripple"/>
+                android:resource="@drawable/hamonlogo"/>
 
             <meta-data
                 android:name="com.nothing.glyph.toy.summary"
-                android:resource="@string/toy_summary_ripple"/>
+                android:resource="@string/toy_summary_hamon"/>
 
             <meta-data
                 android:name="com.nothing.glyph.toy.longpress"

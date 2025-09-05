@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RippleWaveToy</string>
-    <string name="toy_name_ripple">Ripple Wave</string>
-    <string name="toy_summary_ripple">中心から同心円の波紋。長押しで新しい水滴＆パラメータ切替。</string>
+    <string name="app_name">Hamon</string>
+    <string name="toy_name_ripple">Hamon</string>
+    <string name="toy_summary_ripple">静寂の水面に広がる波紋。長押しで禅/波紋/雨の表現を切替。</string>
+    <string name="toy_name_hamon">Hamon</string>
+    <string name="toy_summary_hamon">静寂の水面に広がる波紋。長押しで禅/波紋/雨の表現を切替。</string>
 </resources>

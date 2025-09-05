@@ -1,4 +1,4 @@
-# RippleWaveToy
+# Hamon
 
 Nothing PhoneのGlyph Matrix用の波紋トイアプリです。中心から同心円の波紋が外へ広がる物理シミュレーションを25×25のLEDマトリックス上で表現します。
 
@@ -19,7 +19,7 @@ Nothing PhoneのGlyph Matrix用の波紋トイアプリです。中心から同�
 ## 使い方
 
 1. アプリをインストール
-2. Glyph Toys設定から「Ripple Wave」を選択
+2. Glyph Toys設定から「Hamon」を選択
 3. 背面のGlyph Buttonでトイを切り替え
 4. 長押しで新しい水滴追加 + プロファイル切替
 5. AOD設定で省電力モード
@@ -64,7 +64,7 @@ Nothing PhoneのGlyph Matrix用の波紋トイアプリです。中心から同�
 
 ## カスタマイズ
 
-`RippleWaveToyService.java`内の以下のパラメータを調整可能：
+`RippleWaveToyService.java`（Hamon Toy）内の以下のパラメータを調整可能：
 
 - `profiles[]`: 波長、速度、減衰の設定
 - `envelope()`: 時間経過による立ち上がり・減衰カーブ

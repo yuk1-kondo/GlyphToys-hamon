@@ -18,7 +18,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * RippleWaveSimulator
+ * HamonSimulator
  * エミュレーター用の波紋シミュレーター
  * 25x25のグリッドを画面に表示して波紋の動作を確認可能
  */
@@ -29,7 +29,7 @@ public class RippleWaveSimulatorActivity extends Activity {
     private Button longPressButton;
     private Button aodButton;
     
-    // シミュレーション用の変数（RippleWaveToyServiceと同じ）
+    // シミュレーション用の変数（Hamon Toy Serviceと同じ）
     private static final int W = 25;
     private static final int H = 25;
     private static final float CX = (W - 1) * 0.5f;
