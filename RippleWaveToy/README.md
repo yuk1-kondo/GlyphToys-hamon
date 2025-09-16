@@ -1,5 +1,7 @@
 # Hamon
 
+Author: YUK_KND
+
 Nothing PhoneのGlyph Matrix用の波紋トイアプリです。中心から同心円の波紋が外へ広がる物理シミュレーションを25×25のLEDマトリックス上で表現します。
 
 ## 特徴

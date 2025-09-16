@@ -1,4 +1,4 @@
-package com.example.ripplewavetoy;
+package com.hamon.yukknd;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -7,32 +7,23 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-/**
- * MainActivity
- * エミュレーター用のメイン画面
- * シミュレーターを起動するためのエントリーポイント
- */
 public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        
         Button simulatorButton = findViewById(R.id.simulator_button);
         Button toyInfoButton = findViewById(R.id.toy_info_button);
-        
         simulatorButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, com.example.ripplewavetoy.simulator.RippleWaveSimulatorActivity.class);
+            Intent intent = new Intent(this, com.hamon.yukknd.simulator.RippleWaveSimulatorActivity.class);
             startActivity(intent);
         });
-        
         toyInfoButton.setOnClickListener(v -> {
-            // トイの情報を表示
             showToyInfo();
         });
     }
-    
+
     private void showToyInfo() {
         TextView infoText = findViewById(R.id.info_text);
         String info = "Hamon について\n\n" +
@@ -48,3 +39,5 @@ public class MainActivity extends Activity {
         infoText.setVisibility(View.VISIBLE);
     }
 }
+
+

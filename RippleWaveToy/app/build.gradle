@@ -12,11 +12,11 @@ if (hasKeystore) {
 }
 
 android {
-    namespace 'com.example.ripplewavetoy'
+    namespace 'com.hamon.yukknd'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.ripplewavetoy"
+        applicationId "com.hamon.yukknd"
         minSdk 34
         targetSdk 34
         versionCode 1
