@@ -34,7 +34,7 @@ local.properties
 **/signing.properties
 
 # APK/AAB outputs
-*.apk
+# *.apk  # Commented out to allow APK files in repo
 *.aab
 
 # Misc
