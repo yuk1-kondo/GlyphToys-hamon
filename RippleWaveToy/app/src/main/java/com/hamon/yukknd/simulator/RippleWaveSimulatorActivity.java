@@ -13,6 +13,7 @@ import android.widget.ImageView;
 import android.os.Handler;
 import android.os.Looper;
 import com.hamon.yukknd.R;
+import com.hamon.yukknd.util.MathUtils;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -28,6 +29,14 @@ public class RippleWaveSimulatorActivity extends Activity {
     private static final float CX = (W - 1) * 0.5f;
     private static final float CY = (H - 1) * 0.5f;
     private static final float RADIUS = 12.4f;
+
+    // Wave envelope constants
+    private static final float ENVELOPE_ATTACK = 6f;
+    private static final float ENVELOPE_FADE = 0.004f;
+
+    // Rendering constants
+    private static final float BASE_BRIGHTNESS = 12f;
+    private static final float BRIGHTNESS_SCALE = 115f;
 
     private static class Profile {
         final float wavelength, speed, damping;
@@ -58,6 +67,7 @@ public class RippleWaveSimulatorActivity extends Activity {
     private Timer timer;
     private final int[] frameBuf = new int[W * H];
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private Bitmap displayBitmap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -109,7 +119,11 @@ public class RippleWaveSimulatorActivity extends Activity {
 
     private void stopTimer() {
         if (timer != null) {
-            try { timer.cancel(); } catch (Throwable ignored) {}
+            try {
+                timer.cancel();
+            } catch (Throwable e) {
+                android.util.Log.w("RippleSimulator", "Failed to cancel timer: " + e);
+            }
             timer = null;
         }
     }
@@ -167,7 +181,7 @@ public class RippleWaveSimulatorActivity extends Activity {
                 if (rFromCenter > RADIUS + 0.5f) {
                     frameBuf[idx] = 0xFF000000; continue;
                 }
-                float mask = smoothstep(RADIUS + 0.5f, RADIUS - 1.0f, rFromCenter);
+                float mask = MathUtils.smoothstep(RADIUS + 0.5f, RADIUS - 1.0f, rFromCenter);
                 float sum = 0f;
                 for (Drop d : drops) {
                     if (d == null) continue;
@@ -175,12 +189,10 @@ public class RippleWaveSimulatorActivity extends Activity {
                     float ry = j - d.y;
                     float r = (float)Math.sqrt(rx*rx + ry*ry);
                     float phase = (float)(2.0 * Math.PI * ((r - v * d.age) / wl));
-                    float amp = (float)Math.exp(-a * r) * envelope(d.age);
+                    float amp = (float)Math.exp(-a * r) * MathUtils.envelope(d.age, ENVELOPE_ATTACK, ENVELOPE_FADE);
                     sum += amp * (float)Math.cos(phase);
                 }
-                float base = 12f;
-                float scale = 115f;
-                float val = base + scale * sum;
+                float val = BASE_BRIGHTNESS + BRIGHTNESS_SCALE * sum;
                 val *= mask;
                 if (val < 0f) val = 0f;
                 if (val > 255f) val = 255f;
@@ -196,42 +208,36 @@ public class RippleWaveSimulatorActivity extends Activity {
         int scale = 20;
         int displayW = W * scale;
         int displayH = H * scale;
-        Bitmap bitmap = Bitmap.createBitmap(displayW, displayH, Bitmap.Config.ARGB_8888);
+
+        // Reuse bitmap if it exists and has correct dimensions
+        if (displayBitmap == null || displayBitmap.getWidth() != displayW || displayBitmap.getHeight() != displayH) {
+            if (displayBitmap != null) {
+                displayBitmap.recycle();
+            }
+            displayBitmap = Bitmap.createBitmap(displayW, displayH, Bitmap.Config.ARGB_8888);
+        }
+
         for (int j = 0; j < H; j++) {
             for (int i = 0; i < W; i++) {
                 int color = frameBuf[j * W + i];
                 for (int dy = 0; dy < scale; dy++) {
                     for (int dx = 0; dx < scale; dx++) {
-                        bitmap.setPixel(i * scale + dx, j * scale + dy, color);
+                        displayBitmap.setPixel(i * scale + dx, j * scale + dy, color);
                     }
                 }
             }
         }
-        matrixView.setImageBitmap(bitmap);
-    }
-
-    private static float smoothstep(float edge0, float edge1, float x) {
-        float t = clamp01((x - edge0) / (edge1 - edge0));
-        return t * t * (3f - 2f * t);
-    }
-
-    private static float clamp01(float v) {
-        return v < 0f ? 0f : (v > 1f ? 1f : v);
-    }
-
-    private static float envelope(float age) {
-        float a = age;
-        float attack = 6f;
-        float fade = 0.004f;
-        float att = 1f - (float)Math.exp(-a / attack);
-        float rel = (float)Math.exp(-fade * a);
-        return att * rel;
+        matrixView.setImageBitmap(displayBitmap);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         stopTimer();
+        if (displayBitmap != null) {
+            displayBitmap.recycle();
+            displayBitmap = null;
+        }
     }
 }
 

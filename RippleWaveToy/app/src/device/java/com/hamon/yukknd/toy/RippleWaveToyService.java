@@ -20,6 +20,7 @@ import com.nothing.ketchum.Glyph;
 import com.nothing.ketchum.GlyphMatrixManager;
 import com.nothing.ketchum.GlyphToy;
 import com.nothing.ketchum.GlyphException;
+import com.hamon.yukknd.util.MathUtils;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -41,6 +42,21 @@ public class RippleWaveToyService extends Service {
     private static final float CY = (H - 1) * 0.5f;
     private static final float RADIUS = 12.4f;
     private static final float FPS = 25f;
+
+    // Wave envelope constants
+    private static final float ENVELOPE_ATTACK = 4f;
+    private static final float ENVELOPE_FADE = 0.0065f;
+
+    // Rendering constants
+    private static final float BASE_NORMALIZED_BRIGHTNESS = 0.00f;
+    private static final float BRIGHTNESS_GAIN = 1.10f;
+    private static final int MAX_BRIGHTNESS = 2040;
+
+    // HAMON mode trail constants
+    private static final float HAMON_TRAIL_DELTA = 3.8f;
+    private static final int HAMON_TRAIL_COUNT = 3;
+    private static final float HAMON_TRAIL_GAIN_DECAY = 0.72f;
+
     private static class Profile {
         final float speed;
         final float sigma;
@@ -193,7 +209,14 @@ public class RippleWaveToyService extends Service {
         }, 0, periodMs);
     }
     private void stopTimer() {
-        if (timer != null) { try { timer.cancel(); } catch (Throwable ignored) {} timer = null; }
+        if (timer != null) {
+            try {
+                timer.cancel();
+            } catch (Throwable e) {
+                android.util.Log.w(TAG, "Failed to cancel timer: " + e);
+            }
+            timer = null;
+        }
     }
 
     private void startAutoDropTimer(long initialDelayMs, long periodMs) {
@@ -206,7 +229,14 @@ public class RippleWaveToyService extends Service {
         }, initialDelayMs, periodMs);
     }
     private void stopAutoDropTimer() {
-        if (autoDropTimer != null) { try { autoDropTimer.cancel(); } catch (Throwable ignored) {} autoDropTimer = null; }
+        if (autoDropTimer != null) {
+            try {
+                autoDropTimer.cancel();
+            } catch (Throwable e) {
+                android.util.Log.w(TAG, "Failed to cancel auto drop timer: " + e);
+            }
+            autoDropTimer = null;
+        }
     }
 
     private void step() {
@@ -291,13 +321,27 @@ public class RippleWaveToyService extends Service {
             if (sensorManager != null) {
                 accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                 if (accelerometer != null) {
-                    sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI);
+                    boolean registered = sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI);
+                    android.util.Log.d(TAG, "Accelerometer registered: " + registered);
+                } else {
+                    android.util.Log.w(TAG, "Accelerometer sensor not available");
                 }
+            } else {
+                android.util.Log.w(TAG, "SensorManager not available");
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            android.util.Log.e(TAG, "Failed to setup sensors: " + e);
+        }
     }
     private void teardownSensors() {
-        try { if (sensorManager != null) sensorManager.unregisterListener(shakeListener); } catch (Throwable ignored) {}
+        try {
+            if (sensorManager != null) {
+                sensorManager.unregisterListener(shakeListener);
+                android.util.Log.d(TAG, "Sensor listener unregistered");
+            }
+        } catch (Throwable e) {
+            android.util.Log.w(TAG, "Failed to teardown sensors: " + e);
+        }
         accelerometer = null;
         sensorManager = null;
     }
@@ -328,7 +372,7 @@ public class RippleWaveToyService extends Service {
                 float dy = j - CY;
                 float rFromCenter = (float)Math.sqrt(dx*dx + dy*dy);
                 if (rFromCenter > RADIUS + 1.2f) { frameBuf[idx] = 0; continue; }
-                float mask = smoothstep(RADIUS + 1.2f, RADIUS - 0.2f, rFromCenter);
+                float mask = MathUtils.smoothstep(RADIUS + 1.2f, RADIUS - 0.2f, rFromCenter);
                 float sum = 0f;
                 for (Drop d : drops) {
                     if (d == null) continue;
@@ -341,33 +385,28 @@ public class RippleWaveToyService extends Service {
                     float dr0 = r - r0;
                     float sig0 = sigma * (d.sigmaScale);
                     float shell0 = (float)Math.exp(-0.5f * (dr0 * dr0) / (sig0 * sig0));
-                    float amp0 = (float)Math.exp(-aDrop * r) * envelope(d.age / d.dampingScale) * d.weight;
+                    float amp0 = (float)Math.exp(-aDrop * r) * MathUtils.envelope(d.age / d.dampingScale, ENVELOPE_ATTACK, ENVELOPE_FADE) * d.weight;
                     sum += amp0 * shell0;
                     if (mode == MODE_HAMON) {
-                        float delta = 3.8f;
-                        int trails = 3;
-                        for (int k = 1; k <= trails; k++) {
-                            float rk = r0 - k * delta;
+                        for (int k = 1; k <= HAMON_TRAIL_COUNT; k++) {
+                            float rk = r0 - k * HAMON_TRAIL_DELTA;
                             if (rk < 0f) break;
                             float drk = r - rk;
                             float sigmak = (sigma * (1.0f + 0.25f * k)) * d.sigmaScale;
                             float shellk = (float)Math.exp(-0.5f * (drk * drk) / (sigmak * sigmak));
-                            float envk = envelope(Math.max(0f, (d.age - 2.0f * k)) / d.dampingScale);
+                            float envk = MathUtils.envelope(Math.max(0f, (d.age - 2.0f * k)) / d.dampingScale, ENVELOPE_ATTACK, ENVELOPE_FADE);
                             float dampk = (float)Math.exp(-aDrop * r);
-                            float gaink = (float)Math.pow(0.72f, k) * d.weight;
+                            float gaink = (float)Math.pow(HAMON_TRAIL_GAIN_DECAY, k) * d.weight;
                             sum += gaink * dampk * envk * shellk;
                         }
                     }
                 }
-                float baseN = 0.00f;
-                float gain  = 1.10f;
-                float valN  = baseN + gain * sum;
+                float valN = BASE_NORMALIZED_BRIGHTNESS + BRIGHTNESS_GAIN * sum;
                 valN *= mask;
-                if (valN < 0f) valN = 0f;
-                if (valN > 1f) valN = 1f;
-                int brightness = (int)(valN * 2040f + 0.5f);
+                valN = MathUtils.clamp01(valN);
+                int brightness = (int)(valN * MAX_BRIGHTNESS + 0.5f);
                 if (brightness < 0) brightness = 0;
-                if (brightness > 2040) brightness = 2040;
+                if (brightness > MAX_BRIGHTNESS) brightness = MAX_BRIGHTNESS;
                 frameBuf[idx] = brightness;
             }
         }
@@ -377,19 +416,6 @@ public class RippleWaveToyService extends Service {
             android.util.Log.w(TAG, "setMatrixFrame failed, trying setAppMatrixFrame: " + e);
             try { mGM.setAppMatrixFrame(frameBuf); } catch (GlyphException e2) { android.util.Log.e(TAG, "setAppMatrixFrame also failed: " + e2); }
         }
-    }
-
-    private static float smoothstep(float edge0, float edge1, float x) {
-        float t = clamp01((x - edge0) / (edge1 - edge0));
-        return t * t * (3f - 2f * t);
-    }
-    private static float clamp01(float v) { return v < 0f ? 0f : (v > 1f ? 1f : v); }
-    private static float envelope(float age) {
-        float attack = 4f;
-        float fade   = 0.0065f;
-        float att = 1f - (float)Math.exp(-age / attack);
-        float rel = (float)Math.exp(-fade * age);
-        return att * rel;
     }
 }
 
