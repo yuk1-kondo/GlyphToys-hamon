@@ -2,12 +2,8 @@ package com.hamon.yukknd.simulator;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Color;
 import android.graphics.Bitmap;
 import android.widget.ImageView;
 import android.os.Handler;
@@ -31,15 +27,15 @@ public class RippleWaveSimulatorActivity extends Activity {
 
     private static class Profile {
         final float wavelength, speed, damping;
-        final String name;
-        Profile(float wl, float v, float a, String n){
-            wavelength=wl; speed=v; damping=a; name=n;
+        final int nameResId;
+        Profile(float wl, float v, float a, int nameResId){
+            wavelength=wl; speed=v; damping=a; this.nameResId=nameResId;
         }
     }
     private final Profile[] profiles = new Profile[] {
-            new Profile(4.0f,  0.22f, 0.06f, "柔らかめ"),
-            new Profile(3.0f,  0.35f, 0.05f, "くっきり・速い"),
-            new Profile(5.5f,  0.16f, 0.08f, "ゆったり・減衰強"),
+            new Profile(4.0f,  0.22f, 0.06f, R.string.profile_name_soft),
+            new Profile(3.0f,  0.35f, 0.05f, R.string.profile_name_crisp_fast),
+            new Profile(5.5f,  0.16f, 0.08f, R.string.profile_name_slow_damped),
     };
     private int profileIdx = 0;
 
@@ -92,8 +88,12 @@ public class RippleWaveSimulatorActivity extends Activity {
 
     private void updateProfileText() {
         Profile pf = profiles[profileIdx];
-        profileText.setText(String.format("プロファイル: %s (λ=%.1f, v=%.2f, α=%.2f)",
-            pf.name, pf.wavelength, pf.speed, pf.damping));
+        profileText.setText(getString(
+            R.string.profile_label_format,
+            getString(pf.nameResId),
+            pf.wavelength,
+            pf.speed,
+            pf.damping));
     }
 
     private void startTimer(long periodMs) {

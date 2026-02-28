@@ -3,6 +3,23 @@
     <string name="app_name">Hamon</string>
     <string name="toy_name_hamon">Hamon</string>
     <string name="toy_summary_hamon">Concentric ripples on a calm water surface. Long-press to switch Zen / Hamon / Rain.</string>
+
+    <string name="main_subtitle">Ripple Toy Simulator</string>
+    <string name="simulator_start">Start Simulator</string>
+    <string name="toy_info_button">Toy Info</string>
+    <string name="main_note">* This is an emulator simulator. On device, it renders on Glyph Matrix.</string>
+
+    <string name="simulator_title">Hamon Simulator</string>
+    <string name="profile_name_soft">Soft</string>
+    <string name="profile_name_crisp_fast">Crisp / Fast</string>
+    <string name="profile_name_slow_damped">Slow / Damped</string>
+    <string name="profile_default">Profile: Soft (ƒÉ=4.0, v=0.22, ƒ¿=0.06)</string>
+    <string name="profile_label_format">Profile: %1$s (ƒÉ=%2$.1f, v=%3$.2f, ƒ¿=%4$.2f)</string>
+    <string name="long_press_action">Long Press (Profile Switch + Add Ripple)</string>
+    <string name="aod_step">AOD (1 Step)</string>
+    <string name="simulator_note">* This is an emulator simulator. On device, it renders on Glyph Matrix.</string>
+
+    <string name="toy_info_text">About Hamon\n\n? Renders ripples spreading on a calm water surface\n? Modes: Drop / Hamon / Rain\n  - Drop: Ripples spread from center\n  - Hamon: Trailing rings follow the lead ring\n  - Rain: Random raindrops, shake to burst\n? Supports low-power drawing in AOD mode\n? On real device, it renders on Glyph Matrix\n\n* This simulator displays a 25x25 grid on screen</string>
 </resources>
 
 

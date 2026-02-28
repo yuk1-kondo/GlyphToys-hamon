@@ -73,7 +73,6 @@ public class RippleWaveToyService extends Service {
     private Timer timer;
     private Timer autoDropTimer;
     private boolean isAodMode = false;
-    private boolean isRainMode = false;
     private final Random random = new Random();
     private long lastShakeMs = 0L;
     private final int[] frameBuf = new int[W * H];
@@ -281,8 +280,6 @@ public class RippleWaveToyService extends Service {
         addDrop(x, y, weight, sigmaScale, speedScale, dampingScale);
     }
 
-    private float gaussX() { return (float)(CX + random.nextGaussian() * (W * 0.18f)); }
-    private float gaussY() { return (float)(CY + random.nextGaussian() * (H * 0.18f)); }
     private static float clamp(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
     private void setupSensors() {
